@@ -5,116 +5,173 @@
 
 public class Percolation {
 
-    private int connect_arr[];
-    private int arr[][];
-    //algorithm setting: 1-QF, 2-QU, 3-QUF, default: 1-QF
-    private int algType;
+    private boolean open_arr[];
 
-    // create N-by-N grid, with all sites blocked
+    private QuickFind myQF;
+    private QuickUnion myQU;
+    private QuickUnionFind myQUF;
+
+    //algorithm number: 1-QF, 2-QU, 3-QUF, default is 3 (QUF)
+    private int alg_num;
+
+    //create N-by-N grid, with all sites blocked
     public Percolation(int n){
         if(n < 0) {
             throw new IllegalArgumentException("Dimensions of the grid must be greater than zero.");
         }
 
-        this.arr = new int[n][n];
-        for(int r = 0; r < n; r++){
-            for(int c = 0; c < n; c++){
-                arr[r][c] = 0;
-            }
-        }
+        myQF = new QuickFind(n * n);
+        myQU = new QuickUnion(n * n);
+        myQUF = new QuickUnionFind(n * n);
 
-        this.connect_arr = new int [n];
-        for(int i = 0; i < connect_arr.length; i++) {
-            connect_arr[i] = i;
-        }
+        //default algorithm: QUF
+        alg_num = 1;
 
-        algType = 1;
+        //initializes all sites as closed
+        this.open_arr = new boolean [n * n];
+        for(int i = 0; i < open_arr.length; i++) {
+            open_arr[i] = false;
+        }
     }
 
-    // open site (row i, column j) if it is not open already
+    //open site (row i, column j) if it is not open already
     public void open(int i, int j){
-        if(i < 0 || j < 0 || i > arr.length-1 || j > arr.length-1){
+        //checks if out of bounds
+        if(i < 0 || j < 0 || i > Math.sqrt(open_arr.length) - 1 || j > Math.sqrt(open_arr.length) - 1){
             throw new IllegalArgumentException("Specified index is outside the dimensions of the grid.");
         }
-        if(arr[i][j] == 0) {
-            arr[i][j] = 1;
+        //checks if it is already open
+        if(!isOpen(i,j)) {
+            open_arr[(int)(i * Math.sqrt(open_arr.length) + j)] = true;
         }
+        connectSites();
     }
 
-    // is site (row i, column j) open?
+    //is site (row i, column j) open?
     public boolean isOpen(int i, int j){
-        if(i < 0 || j < 0 || i > arr.length-1 || j > arr.length-1){
+        //checks if out of bounds
+        if(i < 0 || j < 0 || i > Math.sqrt(open_arr.length) - 1 || j > Math.sqrt(open_arr.length) - 1){
             throw new IllegalArgumentException("Specified index is outside the dimensions of the grid.");
         }
-        return arr[i][j] == 1;
+        return open_arr[(int)(i * Math.sqrt(open_arr.length) + j)];
     }
 
-    // is site (row i, column j) full? **************
+    //is site (row i, column j) full?
     public boolean isFull(int i, int j){
-        if(i < 0 || j < 0 || i > arr.length-1 || j > arr.length-1){
+        //checks if out of bounds
+        if(i < 0 || j < 0 || i > Math.sqrt(open_arr.length) - 1 || j > Math.sqrt(open_arr.length) - 1){
             throw new IllegalArgumentException("Specified index is outside the dimensions of the grid.");
         }
-        return true;
+        //checks if site is blocked
+        if(!isOpen(i,j)){
+            return false;
+        }
+
+        //checks if site is connected to any open site in the top row
+        for (int x = 0; x < Math.sqrt(open_arr.length); x++) {
+            if(alg_num == 1){
+                if(isOpen(0, x) && myQF.Find((int)(i * Math.sqrt(open_arr.length) + j), x)){
+                    return true;
+                }
+            } else if(alg_num == 2){
+                if(isOpen(0, x) && myQU.Find((int)(i * Math.sqrt(open_arr.length) + j), x)){
+                    return true;
+                }
+            } else if(alg_num == 3){
+                if(isOpen(0, x) && myQUF.Find((int)(i * Math.sqrt(open_arr.length) + j), x)){
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
-    // does the system percolate? ************
+    //does the system percolate? ************
     public boolean percolates(){
-        if(algType == 1){
-
+        //checks if any sites in the bottom row is full
+        for(int i = 0; i < Math.sqrt(open_arr.length); i++){
+            if(isFull((int)Math.sqrt(open_arr.length-1), i)){
+                return true;
+            }
         }
-        return true;
+        return false;
     }
 
-    //is i connected to j?
-    public boolean QuickFindFind(int i, int j){
-        return connect_arr[i] == connect_arr[j];
-    }
-
-    //connects i to j, changing all indexes with the value of i into the value of j
-    public void QuickFindUnion(int i, int j){
-        if(QuickFindFind(i,j)) return;
-        int temp = connect_arr[i];
-        for(int x : connect_arr){
-            if(connect_arr[x] == temp){
-                connect_arr[x] = connect_arr[j];
+    //connects sites
+    public void connectSites(){
+        //connects every site to the one above and to the right of it
+        for(int r =0; r < Math.sqrt(open_arr.length); r++) {
+            for (int c = 0; c < Math.sqrt(open_arr.length); c++) {
+                //only connects if site is open
+                if(isOpen(r , c)) {
+                    if (r != 0) {
+                        //only connects up if site above is open and site is not in the first row
+                        if(isOpen(r - 1 , c)) {
+                            //up
+                            if (alg_num == 1) {
+                                myQF.Union((int) (r * Math.sqrt(open_arr.length)) + c,
+                                           (int) ((r - 1) * Math.sqrt(open_arr.length)) + c);
+                            }
+                            else if (alg_num == 2) {
+                                myQU.Union((int) (r * Math.sqrt(open_arr.length)) + c,
+                                           (int) ((r - 1) * Math.sqrt(open_arr.length)) + c);
+                            }
+                            else if (alg_num == 3) {
+                                myQUF.Union((int) (r * Math.sqrt(open_arr.length)) + c,
+                                            (int) ((r - 1) * Math.sqrt(open_arr.length)) + c);
+                            }
+                        }
+                    }
+                    if (c != Math.sqrt(open_arr.length) - 1) {
+                        //only connects right if site to the right is open and site is not in the last col
+                        if(isOpen(r, c + 1)) {
+                            //right
+                            if (alg_num == 1) {
+                                myQF.Union((int) (r * Math.sqrt(open_arr.length)) + c,
+                                           (int) (r * Math.sqrt(open_arr.length)) + c + 1);
+                            }
+                            else if (alg_num == 2) {
+                                myQU.Union((int) (r * Math.sqrt(open_arr.length)) + c,
+                                           (int) (r * Math.sqrt(open_arr.length)) + c + 1);
+                            }
+                            else if (alg_num == 3) {
+                                myQUF.Union((int) (r * Math.sqrt(open_arr.length)) + c,
+                                            (int) (r * Math.sqrt(open_arr.length)) + c + 1);
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
-    //is i connected to j?
-    public boolean QuickUnionFind(int i, int j){
-        int rootOfI = connect_arr[i];
-        int rootOfJ = connect_arr[j];
-        while (rootOfI != connect_arr[rootOfI]){
-            rootOfI = connect_arr[rootOfI];
-        }
-        while (rootOfI != connect_arr[rootOfI]){
-            rootOfI = connect_arr[rootOfI];
-        }
-        return rootOfI == rootOfJ;
+    public int getAlg_num() {
+        return alg_num;
     }
 
-    //connects i to j, making the value of i -> j
-    public void QuickUnionUnion(int i, int j){
-        connect_arr[i] = j;
+    public void setAlg_num(int alg_num) {
+        this.alg_num = alg_num;
     }
 
-    // prints array, used for debug and test
-    public String printArray() {
+    //getters are for testing each algorithm
+    public QuickFind getMyQF() {
+        return myQF;
+    }
+
+    public QuickUnion getMyQU() {
+        return myQU;
+    }
+
+    public QuickUnionFind getMyQUF() {
+        return myQUF;
+    }
+
+    //prints open arry, for testing
+    public String printOpen_Arr() {
         String out = "";
-        for (int i = 0; i < arr.length; i++) {
-            out = out + "{ ";
-            for (int j = 0; j < arr[i].length; j++) {
-                out = out + arr[i][j] + " ";
-            }
-            out = out + "},";
+        for (int i = 0; i < open_arr.length; i++) {
+            out = out + open_arr[i] + " ";
         }
         return out;
-    }
-
-
-    // test client
-    public static void main(String[] args){
-
     }
 }
