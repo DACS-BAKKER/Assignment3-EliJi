@@ -25,7 +25,7 @@ public class Percolation {
         myQUF = new QuickUnionFind(n * n);
 
         //default algorithm: QUF
-        alg_num = 1;
+        alg_num = 3;
 
         //initializes all sites as closed
         this.open_arr = new boolean [n * n];
@@ -86,7 +86,7 @@ public class Percolation {
         return false;
     }
 
-    //does the system percolate? ************
+    //does the system percolate?
     public boolean percolates(){
         //checks if any sites in the bottom row is full
         for(int i = 0; i < Math.sqrt(open_arr.length); i++){
